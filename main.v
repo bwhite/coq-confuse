@@ -1,5 +1,3 @@
-Eval simpl in S 1.
-
 Inductive poss : Type :=
   | mp: nat -> poss.
 
@@ -26,11 +24,9 @@ Fixpoint numposp (x: posg) : nat :=
   with numposn (x: negg) : nat :=
   match x with
     | niln => 0
-    | (mn h) -:: t => (numposp t) + 1
+    | (mn h) -:: t => (numposp t)
   end.
 
 Eval simpl in numposp ((mp 6) +:: (mn 5) -:: [+]).
-
 Eval simpl in  (mp 6) +:: (mn 5) -:: [+].
 Eval simpl in (mn 0) -:: [+].
-Eval simpl in {x : nat | x > 0}.
