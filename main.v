@@ -17,4 +17,4 @@ Notation "x +:: l" := (consp x l) (at level 60, right associativity).
 Notation "x -:: l" := (consn x l) (at level 60, right associativity).
 Notation "[+]" := nilp.
 Notation "[-]" := niln.
-Eval simpl in  (mp 6)+:: (mn 5) -:: nilp.
+Eval simpl in  (mp 6) +:: (mn 5) -:: [+].
