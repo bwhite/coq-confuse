@@ -100,6 +100,19 @@ Definition getfn (a:confmat) : nat :=
     [a0, a1, a2, a3] => a3
   end.
 
+Definition cmleftp (l:posg) : confmat :=
+  [0, 0, numnegp l, numposp l].
+
+Definition cmleftn (l:negg) : confmat :=
+  [0, 0, numnegn l, numposn l].
+    
+Definition cmrightp (l:posg) : confmat :=
+  [numposp l, numnegp l, 0, 0].
+
+Definition cmrightn (l:negg) : confmat :=
+  [numposn l, numnegn l, 0, 0].
+
+
 Check True.
 Require Import Arith.Lt.
 Require Import Arith.Le.
@@ -132,10 +145,14 @@ Proof. intros. induction a. rewrite plus_comm. simpl. unfold lt. auto. induction
 (* This isn't true when n = 0 *)
 Lemma cmlt_plus_tp: forall (a b c d n:nat), cmlt [a,b,c,d] (cmsum (settp n) [a,b,c,d]).
 Proof. intros. simpl. unfold cmlt. split. rewrite <- cmle_plus_tp_conv. apply cmle_plus_tp. left. simpl. *)
-Notation "x |<| y" := (cmlt x y) (at level 60, right associativity).
+Notation "x |<| y" := (cmlt x y) (at level 70, right associativity).
 Notation "x |+| y" := (cmsum x y) (at level 60, right associativity).
 (* Note a is turned around to allow for it to match with b.  Show that selecting points intermediate to a group will never produce a threshold larger than either endpoint. *)
 Lemma real_p: forall (a b: negg) (n:nat),
   [numposn a, numposp (mp n +:: b),  numnegn a, numnegn b] |<|
   [numposn a, numposn b,  numnegp (mp n +:: a), numnegn b]. intros. simpl. unfold cmlt. simpl. split. unfold cmle. simpl. split. induction a. simpl. apply le_n. simpl. apply le_n. split. apply le_n. split. apply le_n. induction n. rewrite plus_comm. simpl. apply le_S. rewrite plus_comm. simpl. apply le_n. rewrite plus_comm. apply le_S. assert (n + 1 = S n). apply plus_comm. rewrite <- H. assert (numposn b + (n + 1) = numposn b + n + 1). rewrite plus_assoc. reflexivity. rewrite H0. apply IHn. right. right. right. rewrite <- plus_assoc. rewrite plus_comm. unfold lt. rewrite <- plus_assoc. simpl. apply le_plus_r. Qed.
 
+(* Show that by adding positive points to the left side always hurts performance *)
+Lemma dont_take_middle_points_p: forall (a b: negg) (n m:nat),
+  cmleftp ((mp n) +:: a) |+| (cmrightp ((mp m) +:: b)) |<|
+  ((cmleftn a) |+| (cmrightp ((mp (n + m)) +:: b))). Admitted.
