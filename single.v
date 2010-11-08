@@ -219,6 +219,31 @@ unfold not. intros. subst. unfold cmlt in H3. unfold cmle in H3. simpl in H3.
       simpl in H3. inversion H3. inversion H0. inversion H5. inversion H7. apply keep_test_move_left_part0 in H9. apply H9. apply H1.
   Qed.
 
+(* No split to the left will produce a confusion matrix better than this one *)
+Theorem keep_test_move_left_alln : forall (n: nat) (al bl: list bool) (cm0 cm1: confmat),
+  keep_cm al bl -> cm0 = mkcm al bl -> cm1 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
+  ~ (cmlt cm0 cm1).
+unfold not. intros. subst. unfold cmlt in H2. unfold cmle in H2. simpl in H2.
+  destruct al.
+  Case "al = []".
+    inversion H2. unfold not in H1. apply H1. unfold move_pol_left_r. unfold move_pol_left_l. destruct n.
+    SCase "n = 0".
+      reflexivity.
+    SCase "S n > 0".
+      reflexivity.
+  Case "al = b :: al".
+    destruct b.
+    SCase "b = true".
+      simpl in H. apply H.
+    SCase "b = false".
+      simpl in H2. inversion H2. destruct n.
+      SSCase "n = 0".
+        unfold move_pol_left_l in H1. unfold move_pol_left_r in H1. unfold not in H1. apply H1. reflexivity.
+      SSCase "S n > 0".
+        inversion H0. inversion H4. inversion H6. apply keep_test_move_left_part0 in H8. apply H8. apply gt_Sn_O.
+  Qed.
+
+
 Theorem keep_test_move_right_part0 : forall (n: nat) (al bl: list bool),
   n > 0 -> numtrue (move_pol_right_l n al (true :: bl)) <= numtrue al -> False. 
   intros. unfold move_pol_right_l in H0. rewrite numtrue_app_dist in H0. simpl in H0. destruct n.
@@ -248,12 +273,44 @@ unfold not. intros. subst. unfold cmlt in H3. unfold cmle in H3. simpl in H3.
       destruct al. simpl in H. apply H. simpl in H. destruct b. apply H. apply H.
   Qed.
 
+Theorem keep_test_move_right_alln : forall (n: nat) (al bl: list bool) (cm0 cm1: confmat),
+  keep_cm al bl -> cm0 = mkcm al bl -> cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) ->
+  ~ (cmlt cm0 cm1).
+unfold not. intros. subst. unfold cmlt in H2. unfold cmle in H2. simpl in H2.
+  destruct bl.
+  Case "bl = []".
+    inversion H2. unfold not in H1. apply H1. unfold move_pol_right_r. unfold move_pol_right_l. destruct n.
+    SCase "n = 0".
+      reflexivity.
+    SCase "S n > 0".
+      reflexivity.
+  Case "bl = b :: al".
+    destruct b.
+    SCase "b = true".
+      simpl in H2. inversion H2. inversion H0. inversion H4. inversion H6. destruct n.
+      SSCase "n = 0".
+        unfold not in H1. unfold move_pol_right_r in H1. unfold move_pol_right_l in H1. simpl in H1. apply H1. reflexivity. 
+      SSCase "S n > 0".
+        simpl in H1. apply keep_test_move_right_part0 in H7. apply H7. apply gt_Sn_O.
+    SCase "b = false".
+      destruct al. simpl in H. apply H. simpl in H. destruct b. apply H. apply H.
+  Qed.
+
+
 (* This is the proof that every confusion matrix generated corresponding to a partition accepted by keep_cm is not strictly less than another other confusion matrix (where less than is defined in cmlt) *)
 Theorem keep_test_move_left_right : forall (n: nat) (al bl: list bool) (cm0 cm1 cm2: confmat),
   keep_cm al bl -> cm0 = mkcm al bl -> n > 0 -> cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) -> cm2 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
   (~ (cmlt cm0 cm1)) /\ (~ (cmlt cm0 cm2)).
 split. apply keep_test_move_right with (al := al) (bl := bl) (n := n). auto. auto. auto. auto. apply keep_test_move_left with (al := al) (bl := bl) (n := n). auto. auto. auto. auto. Qed.
 
+Theorem keep_test_move_left_right_alln : forall (n: nat) (al bl: list bool) (cm0 cm1 cm2: confmat),
+  keep_cm al bl -> cm0 = mkcm al bl -> cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) -> cm2 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
+  (~ (cmlt cm0 cm1)) /\ (~ (cmlt cm0 cm2)).
+split.
+  Case "~ cmlt cm0 cm1".
+    apply keep_test_move_right_alln with (al := al) (bl := bl) (n := n). auto. auto. auto.
+  Case "~ cmlt cm0 cm2".
+    apply keep_test_move_left_alln with (al := al) (bl := bl) (n := n). auto. auto. auto. Qed.
 
 (* For any partition that we decide not to keep, there exists a confusion matrix that is strictly better than it *)
 Theorem not_keep_test_move_left_right : forall (al bl: list bool) (cm0 cm1 cm2: confmat),
