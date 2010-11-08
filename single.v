@@ -253,3 +253,32 @@ Theorem keep_test_move_left_right : forall (n: nat) (al bl: list bool) (cm0 cm1 
   keep_cm al bl -> cm0 = mkcm al bl -> n > 0 -> cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) -> cm2 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
   (~ (cmlt cm0 cm1)) /\ (~ (cmlt cm0 cm2)).
 split. apply keep_test_move_right with (al := al) (bl := bl) (n := n). auto. auto. auto. auto. apply keep_test_move_left with (al := al) (bl := bl) (n := n). auto. auto. auto. auto. Qed.
+
+
+(* For any partition that we decide not to keep, there exists a confusion matrix that is strictly better than it *)
+Theorem not_keep_test_move_left_right : forall (al bl: list bool) (cm0 cm1 cm2: confmat),
+  ~(keep_cm al bl) -> cm0 = mkcm al bl  -> exists n, cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) -> cm2 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
+  (cmlt cm0 cm2) \/ (cmlt cm0 cm1).
+  intros. unfold not in H. subst. destruct al.
+  Case "al = []".
+    destruct bl.
+    SCase "bl = []".
+      simpl in H. assert(True). apply I. apply H in H0. inversion H0.
+    SCase "bl = b :: bl".
+      simpl in H. destruct b.
+      SSCase "b = true".
+        assert(True). apply I. apply H in H0. inversion H0.
+      SSCase "b = false".
+        exists 1. right. subst. simpl. unfold cmlt. split. unfold cmle. simpl.  split. auto. split. auto. split. auto. rewrite plus_comm. simpl. apply le_n_Sn. unfold not. intros. inversion H0. 
+  Case "al = b :: al".
+    destruct b.
+    SSCase "b = true".
+      exists 1. left. subst. simpl. unfold cmlt. unfold cmle. simpl. split. auto with arith. unfold not. intros. inversion H0. remember n_Sn. unfold not in n. apply n with (n := numtrue bl). rewrite plus_comm in H2. simpl in H2. apply H2.
+    SSCase "b = false".
+      simpl in H. destruct bl.
+      SSSCase "b = true".
+        remember I. clear Heqt. apply H in t. inversion t. 
+      SSSCase "b = false".
+        destruct b. remember I. clear Heqt. apply H in t. inversion t. exists 1. right. subst. simpl. unfold cmlt. split. unfold cmle. simpl.  split. auto. split. rewrite plus_comm. simpl. rewrite plus_comm. simpl. auto. split. auto. rewrite plus_comm. simpl. apply le_n_Sn. unfold not. intros. inversion H0.  rewrite plus_comm in H2. simpl in H2. remember n_Sn. unfold not in n. apply n with (n := numfalse bl). rewrite H2. reflexivity. Qed.
+
+
