@@ -162,6 +162,33 @@ Lemma cmle_transitivity: forall (a b c: confmat),
     apply le_trans with (m := getfp b). auto. auto.
   Qed.
 
+Lemma cmlt_irreflexive: forall (a: confmat),
+  ~ (cmlt a a).
+  unfold not. intros. unfold cmlt in H. inversion H. unfold not in H1. apply H1. reflexivity. Qed.
+
+Lemma cmlt_asymmetry: forall (a b: confmat),
+  cmlt a b -> ~ (cmlt b a).
+  unfold not. intros. unfold cmlt in H. unfold cmlt in H0. inversion H. inversion H0. clear H H0. unfold not in H2. unfold not in H4. unfold cmle in H1. unfold cmle in H3. destruct a. destruct b. simpl in H1. simpl in H3. apply H2.  inversion H1. inversion H0. inversion H6. clear H1 H0 H6. inversion H3. inversion H1. inversion H9.clear H3 H1 H9. remember le_antisym. clear Heqe. apply e in H. apply e in H5. apply e in H8. apply e in H10. rewrite H10. rewrite H8. rewrite H5. rewrite H. reflexivity. auto. auto. auto. auto. Qed.
+
+Lemma cmlt_transitivity: forall (a b c: confmat),
+  cmlt a b -> cmlt b c -> cmlt a c.
+  unfold cmlt. unfold cmle. destruct a. destruct b. destruct c. unfold not. simpl. intros. inversion H. inversion H1. inversion H4. inversion H6. clear H H1 H4 H6. inversion H0. inversion H. inversion H6. inversion H10. clear H0 H H6 H10. split. 
+  Case "<=".
+    split.
+    SCase "0".
+      apply le_trans with (m := n3). auto. auto.
+    split.
+    SCase "1".
+      apply le_trans with (m := n5). auto. auto.
+    split.
+    SCase "2".
+      apply le_trans with (m := n6). auto. auto.
+    SCase "3".
+      apply le_trans with (m := n4). auto. auto.
+  Case "!=".
+    intros. remember le_antisym. clear Heqe. apply e in H3. rewrite H3 in H1. apply e in H8. rewrite <- H8 in H1. apply e in H5. rewrite H5 in H1. apply e in H7. rewrite <- H7 in H1. apply H1 in H. apply H. inversion H. auto. inversion H. auto. inversion H. auto. inversion H. auto.
+  Qed.
+
 (* Examples of computing confusion matrices from confidence lists *)
 Example test_cm0: mkcm (true :: nil) (false :: nil) = [0, 1, 0, 1].
 auto.
