@@ -272,6 +272,7 @@ unfold not. intros. subst. unfold cmlt in H2. unfold cmle in H2. simpl in H2.
       destruct al. simpl in H. apply H. simpl in H. destruct b. apply H. apply H.
   Qed.
 
+(* For any partition that we decide to keep, there is no confusion matrix strictly better than it *)
 Theorem keep_test_move_left_right : forall (n: nat) (al bl: list bool) (cm0 cm1 cm2: confmat),
   keep_cm al bl -> cm0 = mkcm al bl -> cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) -> cm2 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
   (~ (cmlt cm0 cm1)) /\ (~ (cmlt cm0 cm2)).
