@@ -26,14 +26,12 @@ Ltac SSSSSCase name := Case_aux SSSSSCase name.
 Ltac SSSSSSCase name := Case_aux SSSSSSCase name.
 Ltac SSSSSSSCase name := Case_aux SSSSSSSCase name.
 
+Require Import Arith.
+Require Import Coq.Lists.List.
+Open Scope list_scope.
+
 
 (* Polarities are modeled as +=true and -=false *)
-Inductive polarities : Type :=
-| nilpol : polarities
-| conspol : bool -> polarities -> polarities.
-
-Notation "x :: l" := (conspol x l) (at level 60, right associativity).
-Notation "[]" := nilpol.
 
 (* This is the form of confusion matrix used [TP, FP, TN, FN].  All gets and sets
    must happen through the getters and setters to prevent any ordering errors as
@@ -42,22 +40,22 @@ Inductive confmat: Type :=
   | cm :  nat -> nat -> nat -> nat -> confmat.
 Notation "[ a , b , c , d ]" := (cm a b c d).
 
-Fixpoint numtrue (x: polarities) : nat :=
+Fixpoint numtrue (x: list bool) : nat :=
   match x with
-    | nilpol => 0
+    | nil => 0
     | true :: t => numtrue t + 1
     | false :: t => numtrue t
   end.
 
-Fixpoint numfalse (x: polarities) : nat :=
+Fixpoint numfalse (x: list bool) : nat :=
   match x with
-    | nilpol => 0
+    | nil => 0
     | true :: t => (numfalse t)
     | false :: t => numfalse t + 1
   end.
 
 
-Definition mkcm (a b:polarities) : confmat :=
+Definition mkcm (a b:list bool) : confmat :=
   [numtrue b, numfalse b, numfalse a, numtrue a].
 
 Definition settp (x:confmat) (y:nat) : confmat :=
@@ -99,32 +97,32 @@ Definition getfn (a:confmat) : nat :=
   match a with
     [a0, a1, a2, a3] => a3
   end.
-(*
-Example test_cm0: mkcm (true :: []) (false :: []) = [0, 1, 0, 1].
+
+Example test_cm0: mkcm (true :: nil) (false :: nil) = [0, 1, 0, 1].
 auto.
 
-Example test_cm1: mkcm ((false :: []), (true :: [])) = [1, 0, 1, 0].
+Example test_cm1: mkcm (false :: nil) (true :: nil) = [1, 0, 1, 0].
 auto.
 
-Example test_cm2: mkcm ([], (true :: [])) = [1, 0, 0, 0].
+Example test_cm2: mkcm nil (true :: nil) = [1, 0, 0, 0].
 auto.
 
-Example test_cm3: mkcm ([], []) = [0, 0, 0, 0].
+Example test_cm3: mkcm nil nil = [0, 0, 0, 0].
 auto.
 
-Lemma numtrue_cons_true: forall (p: polarities), (numtrue p) + 1 = numtrue (true :: p).
+Lemma numtrue_cons_true: forall (p: list bool), (numtrue p) + 1 = numtrue (true :: p).
 auto. Qed.
 
-Lemma numtrue_cons_false: forall (p: polarities), (numtrue p) = numtrue (false :: p).
+Lemma numtrue_cons_false: forall (p: list bool), (numtrue p) = numtrue (false :: p).
 auto. Qed.
 
-Lemma numfalse_cons_true: forall (p: polarities), (numfalse p) = numfalse (true :: p).
+Lemma numfalse_cons_true: forall (p: list bool), (numfalse p) = numfalse (true :: p).
 auto. Qed.
 
-Lemma numfalse_cons_false: forall (p: polarities), (numfalse p) + 1 = numfalse (false :: p).
+Lemma numfalse_cons_false: forall (p: list bool), (numfalse p) + 1 = numfalse (false :: p).
 auto. Qed.
 
-*)
+
 Definition cmle (a b: confmat) : Prop :=
   gettp a <= gettp b /\ gettn a <= gettn b /\ getfn b <= getfn a /\ getfp b <= getfp a.
 
@@ -134,165 +132,124 @@ Definition cmlt (a b:confmat) : Prop :=
 Lemma cmle_same: forall (a b c d: nat), cmle [a, b, c, d] [a, b, c, d].
   intros. unfold cmle. auto. Qed.
 
-Definition nexttrue (x: polarities) : bool :=
-  match x with
-    | nilpol => false
-    | true :: t => true
-    | false :: t => false
-  end.
+Definition move_pol_left_l (n:nat) (a b: list bool): list bool :=
+  skipn n a.
 
-Definition nextfalse (x: polarities) : bool :=
-  match x with
-    | nilpol => false
-    | true :: t => false
-    | false :: t => true
-  end.
+Definition move_pol_left_r (n:nat) (a b: list bool): list bool  :=
+  (firstn n a) ++ b.
 
-Definition keep_cm (a: (polarities * polarities)) : Prop :=
-  match a with
-    | (true :: l, _) => False
-    | (_, false :: r) => False
-    | _ => True
-  end.
+Definition move_pol_right_l (n:nat) (a b: list bool): list bool :=
+  (firstn n b) ++ a.
+
+Definition move_pol_right_r (n:nat) (a b: list bool): list bool  :=
+  skipn n b.
+
+Theorem numfalse_app_dist : forall (a b: list bool),
+numfalse (a ++ b) = (numfalse a) + (numfalse b).
+  intros. induction a. induction b. simpl. reflexivity. simpl. reflexivity. simpl. destruct a. apply IHa. rewrite IHa.  remember (numfalse a0 + numfalse b) as j. rewrite plus_comm. subst. remember (numfalse a0 + 1 ) as j. rewrite plus_comm in Heqj. subst. simpl. reflexivity. Qed.
 
 
-Fixpoint split_polarity_rec (a b: polarities) (n:nat): (polarities * polarities) :=
-  match a, b, n with
-    | _, _, O => (a, b)
-    | x, z :: y, S n => split_polarity_rec (z :: x) y n
-    | x, y, S n => (a, b)
-  end.
+Theorem test_move_left_part0 : forall (n: nat) (al bl: list bool),
+~(n + numfalse bl + 1 <= numfalse bl).
+  unfold not. intros. induction n. simpl in H. rewrite plus_comm in H. remember le_Sn_n as le_Sn_n. unfold not in le_Sn_n. simpl in H. apply le_Sn_n in H. apply H. simpl in H. apply le_Sn_le in H. apply IHn. apply H. Qed.
 
-Definition split_polarity (a: polarities) (y:nat): (polarities * polarities) :=
-  split_polarity_rec [] a y.
-
-Fixpoint move_pol_right (a b: polarities) (n:nat): (polarities * polarities) :=
-  match a, b, n with
-    | _, _, O => (a, b)
-    | x, z :: y, S n => move_pol_right (z :: x) y n
-    | x, y, S n => (a, b)
-  end.
-
-Fixpoint move_pol_left_l (n:nat) (a b: polarities): polarities  :=
-  match n, a, b with
-    | O, _, _ => a
-    | S n, z :: x, y => move_pol_left_l n x (z :: y)
-    | S n, [], _ => []
-  end.
-
-Fixpoint move_pol_left_r (n:nat) (a b: polarities): polarities  :=
-  match n, a, b with
-    | O, _, _ => b
-    | S n, z :: x, y => move_pol_left_r n x (z :: y)
-    | S n, [], _ => b
-  end.
-
-Definition keep_cm2 (a: (polarities * polarities)) : Prop :=
-  match a with
-    | (false :: _, true :: _) => True
-    | _ => False
-  end.
-
-Fixpoint join_polarities (a b: polarities): polarities :=
-  match a, b with
-    | x :: xs, ys =>  join_polarities xs (x :: ys)
-    | [], ys => ys
-  end.
-
-Theorem test_split_pol : forall (n: nat) (al bl : polarities) (a b: bool),
-  keep_cm2 (a :: al, b :: bl) -> a = false /\ b = true.
-  intros. split. unfold keep_cm2 in H.  destruct a. inversion H. destruct b. reflexivity. reflexivity.  destruct b. reflexivity. simpl in H. destruct a. inversion H. inversion H. Qed.
-Require Import Arith.
-Theorem le_Sn_n : forall n, ~ S n <= n. Admitted.
-
-Theorem test_move_left_part : forall (n: nat) (al bl: polarities),
-n > 0 -> ~(numfalse (move_pol_left_r n al (false :: true :: bl)) <= numfalse bl).
-  intros. unfold not. intros. induction n. simpl in H0. rewrite plus_comm in H0. remember le_Sn_n as le_Sn_n0. unfold not in le_Sn_n0. apply le_Sn_n0 in H0. apply H0. simpl in H0. 
-
-Theorem test_move_left : forall (n: nat) (al bl: polarities) (a b: bool) (cm0 cm1: confmat),
+Theorem test_move_left : forall (n: nat) (al bl: list bool) (a b: bool) (cm0 cm1: confmat),
   a = false -> b = true -> cm0 = mkcm (a :: al) (b :: bl) -> n > 0 -> cm1 = mkcm (move_pol_left_l n (a :: al) (b :: bl)) (move_pol_left_r n (a :: al) (b :: bl)) ->
   ~ (cmle cm0 cm1).
-  unfold not. intros. subst. unfold cmle in H4. simpl in H4. inversion H4. inversion H0. inversion H3. destruct n. inversion H2. simpl in H6. induction n. simpl in H6. remember le_Sn_n as H7. unfold not in H7. rewrite plus_comm in H6. simpl in H6. apply H7 in H6. apply H6. simpl in H6. destruct al. simpl in H6. remember le_Sn_n as H7. unfold not in H7. rewrite plus_comm in H6. simpl in H6. apply H7 in H6. apply H6. simpl in H6.
+  unfold not. intros. subst. unfold cmle in H4. simpl in H4. inversion H4. inversion H0. inversion H3. destruct n. inversion H2. simpl in H6. rewrite numfalse_app_dist in H6. simpl in H6. induction n. simpl in H6. rewrite plus_comm in H6. remember le_Sn_n  as le_Sn_n. unfold not in le_Sn_n. simpl in H6. apply le_Sn_n in H6. apply H6. simpl. remember test_move_left_part0 as HH. unfold not in HH. apply HH in H6. apply H6. apply al. Qed.
 
-rewrite le_Sn_0 in H6.
+Theorem numtrue_app_dist : forall (a b: list bool),
+numtrue (a ++ b) = (numtrue a) + (numtrue b).
+  intros. induction a. induction b. simpl. reflexivity. simpl. reflexivity. simpl. destruct a. rewrite IHa.  remember (numtrue a0 + numtrue b) as j. rewrite plus_comm. subst. remember (numtrue a0 + 1 ) as j. rewrite plus_comm in Heqj. subst. simpl. reflexivity. apply IHa. Qed.
+
+Theorem test_move_right_part0 : forall (n: nat) (al bl: list bool),
+~(n + numtrue bl + 1 <= numtrue bl).
+  unfold not. intros. induction n. simpl in H. rewrite plus_comm in H. remember le_Sn_n as le_Sn_n. unfold not in le_Sn_n. simpl in H. apply le_Sn_n in H. apply H. simpl in H. apply le_Sn_le in H. apply IHn. apply H. Qed.
+
+
+Theorem test_move_right : forall (n: nat) (al bl: list bool) (a b: bool) (cm0 cm1: confmat),
+  a = false -> b = true -> cm0 = mkcm (a :: al) (b :: bl) -> n > 0 -> cm1 = mkcm (move_pol_right_l n (a :: al) (b :: bl)) (move_pol_right_r n (a :: al) (b :: bl)) ->
+  ~ (cmle cm0 cm1).
+  unfold not. intros. subst. unfold cmle in H4. simpl in H4. inversion H4. inversion H0. inversion H3. destruct n. inversion H2. simpl in H5. rewrite numtrue_app_dist in H5. simpl in H5. induction n. simpl in H5. rewrite plus_comm in H5. remember le_Sn_n  as le_Sn_n. unfold not in le_Sn_n. simpl in H5. apply le_Sn_n in H5. apply H5. simpl. remember test_move_right_part0 as HH. unfold not in HH. apply HH in H5. apply H5. apply al. Qed.
 
 
 
-  PREV
-  intros. subst. simpl. destruct n. 
+Definition keep_cm (a b: list bool) : Prop :=
+  match a, b with
+    | true :: l, _ => False
+    | _, false :: r => False
+    | _, _ => True
+  end.
+
+Theorem a_plus_1_b_le_b : forall (a b: nat),
+  a + 1 + b <= b -> False.
+  intros. induction a.
+  Case "a = 0".
+    simpl in H. apply le_Sn_n in H. apply H.
+  Case "S a > 0".
+    apply IHa. simpl in H. apply le_Sn_le. apply H.
+  Qed.
+
+Theorem keep_test_move_left_part0 : forall (n: nat) (al bl: list bool),
+  n > 0 -> numfalse (move_pol_left_r n (false :: al) bl) <= numfalse bl -> False. 
+  intros. unfold move_pol_left_r in H0. rewrite numfalse_app_dist in H0. simpl in H0. destruct n.
   Case "n = 0".
-    inversion H2.
+    inversion H.
   Case "S n > 0".
-    induction n. destruct al.
-      SCase "al = []".
-        simpl. unfold cmle. simpl. split. auto. split. auto. split. auto. rewrite plus_comm. apply le_S. auto. 
-      SCase "al = b :: al'".
-destruct b. simpl. unfold cmle. simpl. split. auto. split. rewrite plus_comm. simpl. auto. split. auto. rewrite plus_comm. simpl. auto. simpl. unfold cmle. simpl. split. auto. split. remember (numfalse al + 1) as b. rewrite plus_comm. simpl. auto. split. auto. rewrite plus_comm. simpl. auto.
- unfold cmle.  simpl. split. simpl. destruct al. simpl. apply le_n. 
+    simpl in H0. apply a_plus_1_b_le_b in H0. apply H0.
+  Qed.
 
-Theorem test_move_left_part0: forall (n: nat) (al bl: polarities) (a b: bool) (cm0 cm1: confmat),
-move_pol_left_r n al (b :: false :: true :: bl) .
+(* No split to the left will produce a confusion matrix better than this one *)
+Theorem keep_test_move_left : forall (n: nat) (al bl: list bool) (cm0 cm1: confmat),
+  keep_cm al bl -> cm0 = mkcm al bl -> n > 0 -> cm1 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
+  ~ (cmlt cm0 cm1).
+unfold not. intros. subst. unfold cmlt in H3. unfold cmle in H3. simpl in H3.
+  destruct al.
+  Case "al = []".
+    inversion H3. unfold not in H2. apply H2. unfold move_pol_left_r. unfold move_pol_left_l. destruct n.
+    SCase "n = 0".
+      reflexivity.
+    SCase "S n > 0".
+      reflexivity.
+  Case "al = b :: al".
+    destruct b.
+    SCase "b = true".
+      simpl in H. apply H.
+    SCase "b = false".
+      simpl in H3. inversion H3. inversion H0. inversion H5. inversion H7. apply keep_test_move_left_part0 in H9. apply H9. apply H1.
+  Qed.
 
-(*  numtrue
-     match al with
-     | [] => false :: true :: bl
-     | z :: x => move_pol_left_r n (z :: false :: true :: bl) x
-     end <= numtrue bl + 1 *)
+Theorem keep_test_move_right_part0 : forall (n: nat) (al bl: list bool),
+  n > 0 -> numtrue (move_pol_right_l n al (true :: bl)) <= numtrue al -> False. 
+  intros. unfold move_pol_right_l in H0. rewrite numtrue_app_dist in H0. simpl in H0. destruct n.
+  Case "n = 0".
+    inversion H.
+  Case "S n > 0".
+    simpl in H0. apply a_plus_1_b_le_b in H0. apply H0.
+  Qed.
 
-simpl. induction n. destruct al. simpl. apply le_n. simpl. destruct b. simpl.
+(* No split to the right will produce a confusion matrix better than this one *)
+Theorem keep_test_move_right : forall (n: nat) (al bl: list bool) (cm0 cm1: confmat),
+  keep_cm al bl -> cm0 = mkcm al bl -> n > 0 -> cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) ->
+  ~ (cmlt cm0 cm1).
+unfold not. intros. subst. unfold cmlt in H3. unfold cmle in H3. simpl in H3.
+  destruct bl.
+  Case "bl = []".
+    inversion H3. unfold not in H2. apply H2. unfold move_pol_right_r. unfold move_pol_right_l. destruct n.
+    SCase "n = 0".
+      reflexivity.
+    SCase "S n > 0".
+      reflexivity.
+  Case "bl = b :: al".
+    destruct b.
+    SCase "b = true".
+      simpl in H3. inversion H3. inversion H0. inversion H5. inversion H7. apply keep_test_move_right_part0 in H8. apply H8. apply H1.
+    SCase "b = false".
+      destruct al. simpl in H. apply H. simpl in H. destruct b. apply H. apply H.
+  Qed.
 
-
-assert ((move_pol_left_r al (b :: false :: true :: bl) 0) = b :: false :: true :: bl). unfold move_pol_left_r. simpl.
-
- destruct al. simpl. 
-
- destruct al. simpl. apply le_n. simpl. induction n. 
-
-(* I think the way to do this right is to start with two sets of polarities and have a left slider function and a right slider function, showing that the results for each of these things shows that the current split is best *)
-Theorem test_split_pol2 : forall (n m: nat) (al bl: polarities) (a b: bool),
-  keep_cm2 (a :: al, b :: bl) -> a = false -> b = true -> split_polarity p m = (a :: al, b :: bl) -> cmle (mkcm (split_polarity p n)) (mkcm (a :: al, b :: bl)).
-  intros.  subst. simpl. induction n. unfold split_polarity. destruct p. simpl. admit. destruct b. simpl.
-
-induction n. unfold mkcm. unfold split_polarity. simpl.
-
-apply test_split_pol in H. admit. 
-
-simpl. inversion H.
-
-
-  keep_cm2 (split_polarity p n) -> cmle (mkcm (split_polarity p n)) (mkcm (split_polarity p m)).
-  intros. unfold keep_cm2 in H. simpl in H.
-
-
-Theorem test_split_pol : forall (n m: nat) (p : polarities),
-  keep_cm (split_polarity p n) -> cmle (mkcm (split_polarity p n)) (mkcm (split_polarity p m)).
-  intros. destruct p. induction n. induction m. simpl. apply cmle_same. simpl. apply cmle_same. simpl.
-
-  intros. induction n. unfold cmle. 
-
-
-
-Theorem test_split_pol0 : forall (n : nat) (p : polarities), p = (false :: false :: true :: true :: []) -> cmle (mkcm (split_polarity p n)) (mkcm (split_polarity p 2)).
-Proof.
-intros. rewrite H. simpl. destruct n. simpl. unfold cmle. simpl. split. auto. split. auto. split. auto. auto. unfold split_polarity. simpl. destruct n. simpl. unfold cmle. split. simpl. auto. split. simpl. auto. split. simpl. auto. simpl. auto. simpl. destruct n. simpl. unfold cmle. split. simpl. auto. split. simpl. auto. split. auto. auto. simpl. destruct n. simpl. unfold cmle. split. simpl. auto. split. simpl. auto. split. simpl. auto. simpl. auto. simpl. destruct n. simpl. unfold cmle. split. simpl. auto. split. auto. split. simpl. auto. auto. simpl. unfold cmle. split. simpl. auto. split. simpl. auto. split. simpl. auto. simpl. auto. Qed.
-
-
-
-  intro. intro. intro.
-
-
-  unfold keep_cm. intro. intro. intro. intro. unfold cmle.
-  intros. unfold keep_cm in H. 
-
-
-p = (false :: false :: true :: true :: []) -> cmle (mkcm (split_polarity p n)) (mkcm (split_polarity p 2)).
-
-(* Show that keep_cm is only true in our listed cases *)
-
-(* Show that if keep_cm is true, then the confusion matrix from it is not less than or equal to any other in the list *)
-
-
-
-
-Lemma cmlt_one_tp: forall (a b: polarities), cmlt (mkcm (true :: a) (b)) (mkcm (a) (true :: b)).
-intros. unfold mkcm. simpl. unfold cmlt. split. unfold cmle. simpl.  split. auto with arith. split. apply le_n. split. auto with arith. auto with ari
+(* This is the proof that every confusion matrix generated corresponding to a partition accepted by keep_cm is not strictly less than another other confusion matrix (where less than is defined in cmlt) *)
+Theorem keep_test_move_left_right : forall (n: nat) (al bl: list bool) (cm0 cm1 cm2: confmat),
+  keep_cm al bl -> cm0 = mkcm al bl -> n > 0 -> cm1 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) -> cm2 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
+  (~ (cmlt cm0 cm1)) /\ (~ (cmlt cm0 cm2)).
+split. apply keep_test_move_right with (al := al) (bl := bl) (n := n). auto. auto. auto. auto. apply keep_test_move_left with (al := al) (bl := bl) (n := n). auto. auto. auto. auto. Qed.
