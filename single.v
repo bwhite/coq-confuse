@@ -56,6 +56,35 @@ Fixpoint numfalse (x: list bool) : nat :=
     | false :: t => numfalse t + 1
   end.
 
+(* These functions maximally split a list into one part with the specified polarity, and the other part with the rest of the list *)
+Fixpoint split_true_l (x: list bool) : list bool :=
+  match x with
+    | nil => nil
+    | true :: t => true :: split_true_l t
+    | false :: t => nil
+  end.
+
+Fixpoint split_true_r (x: list bool) : list bool :=
+  match x with
+    | nil => nil
+    | true :: t => split_true_r t
+    | false :: t => false :: t
+  end.
+
+Fixpoint split_false_l (x: list bool) : list bool :=
+  match x with
+    | nil => nil
+    | true :: t => nil
+    | false :: t => false :: split_false_l t
+  end.
+
+Fixpoint split_false_r (x: list bool) : list bool :=
+  match x with
+    | nil => nil
+    | true :: t => true :: t
+    | false :: t => split_false_r t
+  end.
+
 Definition move_pol_left_l (n:nat) (a b: list bool): list bool :=
   skipn n a.
 
@@ -168,7 +197,7 @@ Lemma cmlt_irreflexive: forall (a: confmat),
 
 Lemma cmlt_asymmetry: forall (a b: confmat),
   cmlt a b -> ~ (cmlt b a).
-  unfold not. intros. unfold cmlt in H. unfold cmlt in H0. inversion H. inversion H0. clear H H0. unfold not in H2. unfold not in H4. unfold cmle in H1. unfold cmle in H3. destruct a. destruct b. simpl in H1. simpl in H3. apply H2.  inversion H1. inversion H0. inversion H6. clear H1 H0 H6. inversion H3. inversion H1. inversion H9.clear H3 H1 H9. remember le_antisym. clear Heqe. apply e in H. apply e in H5. apply e in H8. apply e in H10. rewrite H10. rewrite H8. rewrite H5. rewrite H. reflexivity. auto. auto. auto. auto. Qed.
+  unfold not. intros. unfold cmlt in H. unfold cmlt in H0. inversion H. inversion H0. clear H H0. unfold not in H2. unfold not in H4. unfold cmle in H1. unfold cmle in H3. destruct a. destruct b. simpl in H1. simpl in H3. apply H2.  inversion H1. inversion H0. inversion H6. clear H1 H0 H6. inversion H3. inversion H1. inversion H9. clear H3 H1 H9. remember le_antisym. clear Heqe. apply e in H. apply e in H5. apply e in H8. apply e in H10. rewrite H10. rewrite H8. rewrite H5. rewrite H. reflexivity. auto. auto. auto. auto. Qed.
 
 Lemma cmlt_transitivity: forall (a b c: confmat),
   cmlt a b -> cmlt b c -> cmlt a c.
@@ -335,4 +364,107 @@ Theorem not_keep_test_move_left_right : forall (al bl: list bool) (cm0 cm1 cm2: 
         remember I. clear Heqt. apply H in t. inversion t. 
       SSSCase "b = false".
         destruct b. remember I. clear Heqt. apply H in t. inversion t. exists 1. right. subst. simpl. unfold cmlt. split. unfold cmle. simpl.  split. auto. split. rewrite plus_comm. simpl. rewrite plus_comm. simpl. auto. split. auto. rewrite plus_comm. simpl. apply le_n_Sn. unfold not. intros. inversion H0.  rewrite plus_comm in H2. simpl in H2. remember n_Sn. unfold not in n. apply n with (n := numfalse bl). rewrite H2. reflexivity.
+  Qed.
+
+Lemma blah: forall (bl bl' al blh blt: list bool) (cm1l cm1r: list bool) (cm0 cm1: confmat),
+  blh = false :: bl' -> cm0 = mkcm al bl -> bl = blh ++ blt -> hd true blt = true -> 0 = numtrue blh -> cm1l = blh ++ al -> cm1r = blt -> cm1 = mkcm cm1l cm1r ->
+  (keep_cm cm1l cm1r /\ cmlt cm0 cm1). intros. subst. split. simpl. destruct blt. apply I. destruct b. apply I. simpl in H2. inversion H2. simpl. unfold cmlt. split. unfold cmle. simpl. simpl in H3. split. rewrite numtrue_app_dist. rewrite <- H3. simpl. apply le_n. split. rewrite numfalse_app_dist.  rewrite plus_comm.  rewrite plus_assoc. remember (1 + numfalse bl') as a. rewrite plus_comm. apply le_plus_l. split. rewrite numtrue_app_dist. rewrite <- H3. auto. rewrite numfalse_app_dist. rewrite plus_comm.  rewrite plus_assoc. remember (1 + numfalse bl') as a. rewrite plus_comm. apply le_plus_l. unfold not. unfold mkcm. simpl. rewrite numtrue_app_dist. rewrite numfalse_app_dist. rewrite numfalse_app_dist. rewrite numtrue_app_dist.  simpl in H3. rewrite <- H3. simpl. intros. inversion H. rewrite <- plus_assoc in H4. rewrite plus_comm in H4. rewrite <- plus_assoc in H4. inversion H4. remember succ_plus_discr. clear Heqn. unfold not in n. rewrite plus_comm in H5. simpl in H5. apply n in H5. apply H5. Qed.
+
+Lemma a_le_b_a_1: forall (a b: nat),
+  a <= b + a + 1.
+  intros. induction b. simpl. rewrite plus_comm. simpl. auto. simpl. auto. Qed.
+
+Lemma blah2: forall (bl al' al alh alt blh blt: list bool) (cml cmr: list bool) (cm0 cm1: confmat),
+  al = true :: al' -> cm0 = mkcm al bl ->
+  alh = split_true_l al -> alt = split_true_r al -> cml = alt -> cmr = alh ++ bl -> cm1 = mkcm cml cmr -> keep_cm cml cmr /\ cmlt cm0 cm1.
+  intros. split.
+  Case "keep_cm cml cmr".
+    destruct al'.
+    SCase "al' = nil".
+      subst. simpl. apply I.
+    SCase "al' = b :: al'".
+      destruct b.
+      SSCase "al' = true :: al'".
+        subst. simpl. induction al'.
+        SSSCase "al' = nil".
+          simpl. apply I.
+        SSSCase "al' = a :: al'".
+          destruct a.
+          SSSSCase "al' = true :: al'".
+            simpl. apply IHal'.
+          SSSSCase "al' = false :: al'".
+            simpl. apply I.
+      SSCase "al' = false :: al'".
+        subst. simpl. apply I.
+  Case "cmlt cm0 cm1".
+    subst. simpl. split.
+    SCase "cmle".
+      unfold cmle. simpl. split. rewrite numtrue_app_dist. apply a_le_b_a_1. split. induction al'. auto. simpl. destruct a. auto. simpl. auto. split. induction al'. simpl. auto. simpl. destruct a. auto with arith. auto with arith. rewrite numfalse_app_dist. induction al'. auto. simpl. destruct a. auto with arith. auto with arith.
+    SCase "<>".
+      unfold not. intros. inversion H. rewrite numtrue_app_dist in H1. rewrite plus_comm in H1. simpl in H1. remember succ_plus_discr. clear Heqn. unfold not in n. apply n in H1. apply H1.
+  Qed.  
+
+Lemma blah4: forall (bl bl' al alh alt blh blt: list bool) (cml cmr: list bool) (cm0 cm1: confmat),
+  bl = false :: bl' -> cm0 = mkcm al bl ->
+  blh = split_false_l bl -> blt = split_false_r bl -> cml = blh ++ al -> cmr = blt -> cm1 = mkcm cml cmr -> keep_cm cml cmr /\ cmlt cm0 cm1.
+  intros. split.
+  Case "keep_cm cml cmr".
+    destruct bl'.
+    SCase "bl' = nil".
+      subst. simpl. apply I.
+    SCase "bl' = b :: bl'".
+      destruct b.
+      SSCase "bl' = true :: al'".
+        subst. simpl. apply I.
+      SSCase "bl' = false :: bl'".
+        subst. simpl. induction bl'.
+        SSSCase "bl' = nil".
+          apply I.
+        SSSCase "bl' = a :: bl'".
+          destruct a.
+          SSSSCase "bl' = true :: bl'".
+            apply I.
+          SSSSCase "bl' = false :: bl'".
+            apply IHbl'.
+  Case "cmlt cm0 cm1".
+    subst. simpl. split.
+    SCase "cmle".
+      unfold cmle. simpl. split. induction bl'. auto.  simpl. destruct a;  auto. split. rewrite numfalse_app_dist. apply a_le_b_a_1. split. rewrite numtrue_app_dist. induction bl'. auto. destruct a; auto. induction bl'. simpl. auto. destruct a. simpl. rewrite plus_comm. simpl. auto. simpl. induction bl'.simpl. auto. simpl. destruct a. simpl. rewrite plus_comm. simpl. auto. induction bl'. simpl. auto. simpl. destruct a. simpl. rewrite plus_comm. simpl. auto. rewrite plus_comm. simpl. auto.
+    SCase "<>".
+      unfold not. intros. inversion H. rewrite numfalse_app_dist in H3. rewrite plus_comm in H3. simpl in H3. remember succ_plus_discr. clear Heqn. unfold not in n.  apply n in H3. apply H3.
+  Qed.
+          
+Lemma not_true: ~ True -> False.
+  unfold not. intros. remember I. clear Heqt. apply H in t. apply t. Qed.
+
+Lemma blah3: forall (bl al' bl' al alh alt blh blt: list bool) (cm1l cm1r cm2l cm2r: list bool) (cm0 cm1 cm2: confmat),
+  ~(keep_cm al bl) -> cm0 = mkcm al bl -> cm1 = mkcm cm1l cm1r -> cm2 = mkcm cm2l cm2r ->
+  blh = split_false_l bl -> blt = split_false_r bl -> cm1l = blh ++ al -> cm1r = blt ->
+  alh = split_true_l al -> alt = split_true_r al -> cm2l = alt -> cm2r = alh ++ bl ->
+  keep_cm cm1l cm1r /\ cmlt cm0 cm1 \/ keep_cm cm2l cm2r /\ cmlt cm0 cm2.
+  simpl. intros. destruct al.
+  Case "al = nil".
+    destruct bl.
+    SCase "bl = nil".
+      apply not_true in H. inversion H.
+    SCase "bl = b :: bl".
+      destruct b.
+      SSCase "bl = true :: bl".
+        apply not_true in H. inversion H.
+      SSCase "bl = false :: bl".
+        left. apply blah4 with (bl := false :: bl) (bl' := bl) (al := nil) (blh := blh) (blt := blt); auto.
+  Case "al = b :: al".
+    destruct b.
+    SCase "al = true :: al".
+      right. apply blah2 with (al := true :: al) (al' := al) (bl := bl) (alh := alh) (alt := alt); auto.
+    SCase "al = false :: al".
+      destruct bl. 
+      SSCase "bl = nil".
+        apply not_true in H. inversion H.
+      SSCase "bl = b :: bl".
+        destruct b.
+        SSSCase "bl = true :: bl".
+          apply not_true in H. inversion H.
+        SSSCase "bl = true :: bl".
+          left. apply blah4 with (bl := false :: bl) (bl' := bl) (al := false :: al) (blh := blh) (blt := blt); auto.
   Qed.
