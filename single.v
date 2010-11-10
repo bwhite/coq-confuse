@@ -55,6 +55,7 @@ Fixpoint numfalse (x: list bool) : nat :=
     | true :: t => (numfalse t)
     | false :: t => numfalse t + 1
   end.
+  
 
 (* These functions maximally split a list into one part with the specified polarity, and the other part with the rest of the list *)
 Fixpoint split_true_l (x: list bool) : list bool :=
@@ -85,18 +86,85 @@ Fixpoint split_false_r (x: list bool) : list bool :=
     | false :: t => split_false_r t
   end.
 
+Lemma numfalse_split_false_r_le: forall (l : list bool),
+  numfalse (split_false_r l) <= numfalse l.
+  intros. induction l. auto. simpl. destruct a. auto. rewrite plus_comm. simpl. auto. Qed.
+
+Hint Resolve numfalse_split_false_r_le.
+
+Lemma numtrue_split_true_r_le: forall (l : list bool),
+  numtrue (split_true_r l) <= numtrue l.
+  intros. induction l. auto. simpl. destruct a. rewrite plus_comm. simpl. auto. auto. Qed.
+
+Hint Resolve numtrue_split_true_r_le.
+
+
+Lemma split_false_l_false_head_tail: forall (a: list bool),
+split_false_l a ++ false :: nil = false :: split_false_l a.
+  intros. induction a. auto. destruct a. auto. simpl. rewrite IHa. reflexivity. Qed.
+
+(* As the split on the left is always the same boolean value, we can move an element from the front to the back *)
+Lemma split_true_l_true_head_tail: forall (a: list bool),
+split_true_l a ++ true :: nil = true :: split_true_l a.
+  intros. induction a. auto. destruct a. simpl. rewrite IHa. reflexivity.  auto. Qed.
+
+Lemma split_true_l_false_head_tail: forall (a: list bool),
+split_false_l a ++ false :: nil = false :: split_false_l a.
+  intros. induction a. auto. destruct a. auto. simpl. rewrite IHa. reflexivity. Qed.
+
+(* As the split on the left is always the same boolean value, we can reverse the list *)
+Lemma split_false_l_rev: forall (a : list bool),
+rev (split_false_l a) = split_false_l a.
+  intros. induction a. reflexivity. simpl. destruct a. reflexivity. simpl. rewrite IHa. apply split_false_l_false_head_tail. Qed.
+
+Hint Resolve split_false_l_rev.
+
+Lemma split_true_l_rev: forall (a : list bool),
+rev (split_true_l a) = split_true_l a.
+  intros. induction a. reflexivity. simpl. destruct a. simpl. rewrite IHa. apply split_true_l_true_head_tail. reflexivity. Qed.
+
+Hint Resolve split_true_l_rev.
+
+Lemma numtrue_split_false_l: forall (l: list bool),
+numtrue (split_false_l l) = 0.
+  intros. induction l. auto. simpl. destruct a; auto. Qed.
+
+Hint Resolve numtrue_split_false_l.
+
+Lemma numfalse_split_true_l: forall (l: list bool),
+numfalse (split_true_l l) = 0.
+  intros. induction l. auto. simpl. destruct a; auto. Qed.
+
+Hint Resolve numtrue_split_false_l.
+
 Definition move_pol_left_l (n:nat) (a b: list bool): list bool :=
   skipn n a.
 
+Hint Unfold move_pol_left_l.
+
 Definition move_pol_left_r (n:nat) (a b: list bool): list bool  :=
-  (firstn n a) ++ b.
+  (rev (firstn n a)) ++  b.
+
+Hint Unfold move_pol_left_r.
 
 Definition move_pol_right_l (n:nat) (a b: list bool): list bool :=
-  (firstn n b) ++ a.
+  (rev (firstn n b)) ++  a.
+
+Hint Unfold move_pol_right_l.
 
 Definition move_pol_right_r (n:nat) (a b: list bool): list bool  :=
   skipn n b.
 
+Hint Unfold move_pol_right_r.
+
+(* Lemma rev_app_distr : forall x y: (list bool), rev (x ++ y) = rev y ++ rev x. Admitted.
+
+Lemma list_app_dist : forall x y z: (list bool), x ++ y ++ z = (x ++ y) ++ z. Admitted.
+
+Lemma move_left_test: forall (n: nat) (a b: list bool),
+  (rev a) ++ b = (rev (move_pol_left_l n a b)) ++ (move_pol_left_r n a b).
+  intros. unfold move_pol_left_l. unfold move_pol_left_r.  rewrite list_app_dist. rewrite <- rev_app_distr. rewrite firstn_skipn. reflexivity. Qed.
+*)
 Lemma numfalse_app_dist : forall (a b: list bool),
 numfalse (a ++ b) = (numfalse a) + (numfalse b).
   intros. induction a.
@@ -164,9 +232,13 @@ Definition getfn (a:confmat) : nat :=
 Definition cmle (a b: confmat) : Prop :=
   gettp a <= gettp b /\ gettn a <= gettn b /\ getfn b <= getfn a /\ getfp b <= getfp a.
 
+Hint Unfold cmle.
+
 (* Defined as a strict partial order where <= defined a weak partial order *)
 Definition cmlt (a b:confmat) : Prop :=
   cmle a b /\ ~(a = b).
+
+Hint Unfold cmlt.
 
 Lemma cmle_reflexive: forall (a: confmat),
   cmle a a.
@@ -261,13 +333,22 @@ Lemma a_plus_1_b_le_b : forall (a b: nat),
     apply IHa. simpl in H. apply le_Sn_le. apply H.
   Qed.
 
+Lemma numfalse_tail_false_plus_1: forall (l: list bool),
+  numfalse (l ++ false :: nil) = numfalse l + 1.
+  intros. induction l. auto. simpl. destruct a; auto. Qed.
+
+Lemma numtrue_tail_true_plus_1: forall (l: list bool),
+  numtrue (l ++ true :: nil) = numtrue l + 1.
+  intros. induction l. auto. simpl. destruct a; auto. Qed.
+
+
 Lemma keep_test_move_left_morefp : forall (n: nat) (al bl: list bool),
   n > 0 -> numfalse (move_pol_left_r n (false :: al) bl) <= numfalse bl -> False. 
-  intros. unfold move_pol_left_r in H0. rewrite numfalse_app_dist in H0. simpl in H0. destruct n.
+  intros. unfold move_pol_left_r in H0.  rewrite numfalse_app_dist in H0. simpl in H0. destruct n.
   Case "n = 0".
     inversion H.
   Case "S n > 0".
-    simpl in H0. apply a_plus_1_b_le_b in H0. apply H0.
+    simpl in H0.  rewrite numfalse_tail_false_plus_1 in H0. apply a_plus_1_b_le_b in H0. auto.
   Qed.
 
 (* No split to the left will produce a confusion matrix better than this one *)
@@ -301,7 +382,7 @@ Lemma keep_test_move_right_morefn : forall (n: nat) (al bl: list bool),
   Case "n = 0".
     inversion H.
   Case "S n > 0".
-    simpl in H0. apply a_plus_1_b_le_b in H0. apply H0.
+    simpl in H0. rewrite numtrue_tail_true_plus_1 in H0. apply a_plus_1_b_le_b in H0. auto.
   Qed.
 
 (* No split to the right will produce a confusion matrix better than this one *)
@@ -366,9 +447,27 @@ Theorem not_keep_test_move_left_right : forall (al bl: list bool) (cm0 cm1 cm2: 
         destruct b. remember I. clear Heqt. apply H in t. inversion t. exists 1. right. subst. simpl. unfold cmlt. split. unfold cmle. simpl.  split. auto. split. rewrite plus_comm. simpl. rewrite plus_comm. simpl. auto. split. auto. rewrite plus_comm. simpl. apply le_n_Sn. unfold not. intros. inversion H0.  rewrite plus_comm in H2. simpl in H2. remember n_Sn. unfold not in n. apply n with (n := numfalse bl). rewrite H2. reflexivity.
   Qed.
 
+(* Simple theorems that aren't built into coq *)
+
 Lemma a_le_b_a_1: forall (a b: nat),
   a <= b + a + 1.
   intros. induction b. simpl. rewrite plus_comm. simpl. auto. simpl. auto. Qed.
+
+Hint Resolve a_le_b_a_1.
+
+Lemma a_le_a_b_1: forall (a b: nat),
+  a <= a + (b + 1).
+  intros. rewrite plus_assoc. induction b. rewrite plus_comm. simpl. rewrite plus_comm. simpl. auto. rewrite plus_comm.  simpl. rewrite plus_comm. simpl. rewrite plus_comm in IHb. simpl in IHb. rewrite plus_comm in IHb. auto. Qed.
+Qed.
+
+Hint Resolve a_le_a_b_1.
+
+
+Lemma a_plus_0_le: forall (a: nat),
+a + 0 <= a.
+  intros. rewrite plus_comm. auto. Qed.
+
+Hint Resolve a_plus_0_le.
 
 Lemma left_is_kept_and_better: forall (bl al' al alh alt blh blt: list bool) (cml cmr: list bool) (cm0 cm1: confmat),
   al = true :: al' -> cm0 = mkcm al bl ->
@@ -400,9 +499,15 @@ Lemma left_is_kept_and_better: forall (bl al' al alh alt blh blt: list bool) (cm
       unfold not. intros. inversion H. rewrite numtrue_app_dist in H1. rewrite plus_comm in H1. simpl in H1. remember succ_plus_discr. clear Heqn. unfold not in n. apply n in H1. apply H1.
   Qed.  
 
+Lemma numtrue_le_split_false_r: forall (l : list bool),
+numtrue l <= numtrue (split_false_r l).
+  intros. induction l. auto. simpl. destruct a. auto. auto. Qed.
+
+Hint Resolve numtrue_le_split_false_r.
+
 Lemma right_is_kept_and_better: forall (bl bl' al alh alt blh blt: list bool) (cml cmr: list bool) (cm0 cm1: confmat),
   bl = false :: bl' -> cm0 = mkcm al bl ->
-  blh = split_false_l bl -> blt = split_false_r bl -> cml = blh ++ al -> cmr = blt -> cm1 = mkcm cml cmr -> keep_cm cml cmr /\ cmlt cm0 cm1.
+  blh = split_false_l bl -> blt = split_false_r bl -> cml = (rev blh) ++ al -> cmr = blt -> cm1 = mkcm cml cmr -> keep_cm cml cmr /\ cmlt cm0 cm1.
   intros. split.
   Case "keep_cm cml cmr".
     destruct bl'.
@@ -413,7 +518,7 @@ Lemma right_is_kept_and_better: forall (bl bl' al alh alt blh blt: list bool) (c
       SSCase "bl' = true :: al'".
         subst. simpl. apply I.
       SSCase "bl' = false :: bl'".
-        subst. simpl. induction bl'.
+        subst. simpl. rewrite split_false_l_rev. rewrite split_false_l_false_head_tail. simpl. induction bl'.
         SSSCase "bl' = nil".
           apply I.
         SSSCase "bl' = a :: bl'".
@@ -421,13 +526,13 @@ Lemma right_is_kept_and_better: forall (bl bl' al alh alt blh blt: list bool) (c
           SSSSCase "bl' = true :: bl'".
             apply I.
           SSSSCase "bl' = false :: bl'".
-            apply IHbl'.
+            simpl. apply IHbl'.
   Case "cmlt cm0 cm1".
     subst. simpl. split.
     SCase "cmle".
-      unfold cmle. simpl. split. induction bl'. auto.  simpl. destruct a;  auto. split. rewrite numfalse_app_dist. apply a_le_b_a_1. split. rewrite numtrue_app_dist. induction bl'. auto. destruct a; auto. induction bl'. simpl. auto. destruct a. simpl. rewrite plus_comm. simpl. auto. simpl. induction bl'. simpl. auto. simpl. destruct a. simpl. rewrite plus_comm. simpl. auto. induction bl'. simpl. auto. simpl. destruct a. simpl. rewrite plus_comm. simpl. auto. rewrite plus_comm. simpl. auto.
+      unfold cmle. simpl. split. auto. split. rewrite numfalse_app_dist. rewrite plus_comm. rewrite split_false_l_rev. rewrite numfalse_app_dist. simpl. apply a_le_a_b_1. split.  rewrite split_false_l_rev. rewrite numtrue_app_dist. rewrite numtrue_app_dist. simpl. rewrite numtrue_split_false_l. auto. rewrite plus_comm. simpl. auto.
     SCase "<>".
-      unfold not. intros. inversion H. rewrite numfalse_app_dist in H3. rewrite plus_comm in H3. simpl in H3. remember succ_plus_discr. clear Heqn. unfold not in n.  apply n in H3. apply H3.
+      unfold not. intros. inversion H. rewrite numfalse_app_dist in H3. rewrite plus_comm in H3. simpl in H3. remember succ_plus_discr. clear Heqn. unfold not in n.  rewrite split_false_l_rev in H3. rewrite split_true_l_false_head_tail in H3. simpl in H3. rewrite plus_assoc in H3. rewrite plus_comm in H3. simpl in H3. rewrite plus_comm in H3. apply n in H3. apply H3.
   Qed.
           
 Lemma not_true: ~ True -> False.
@@ -435,8 +540,8 @@ Lemma not_true: ~ True -> False.
 
 Lemma something_is_kept_and_better: forall (bl al' bl' al alh alt blh blt: list bool) (cm1l cm1r cm2l cm2r: list bool) (cm0 cm1 cm2: confmat),
   ~(keep_cm al bl) -> cm0 = mkcm al bl -> cm1 = mkcm cm1l cm1r -> cm2 = mkcm cm2l cm2r ->
-  blh = split_false_l bl -> blt = split_false_r bl -> cm1l = blh ++ al -> cm1r = blt ->
-  alh = split_true_l al -> alt = split_true_r al -> cm2l = alt -> cm2r = alh ++ bl ->
+  blh = split_false_l bl -> blt = split_false_r bl -> cm1l = (rev blh) ++ al -> cm1r = blt ->
+  alh = split_true_l al -> alt = split_true_r al -> cm2l = alt -> cm2r = (rev alh) ++ bl ->
   keep_cm cm1l cm1r /\ cmlt cm0 cm1 \/ keep_cm cm2l cm2r /\ cmlt cm0 cm2.
   simpl. intros. destruct al.
   Case "al = nil".
@@ -452,7 +557,7 @@ Lemma something_is_kept_and_better: forall (bl al' bl' al alh alt blh blt: list 
   Case "al = b :: al".
     destruct b.
     SCase "al = true :: al".
-      right. apply left_is_kept_and_better with (al := true :: al) (al' := al) (bl := bl) (alh := alh) (alt := alt); auto.
+      right. apply left_is_kept_and_better with (al := true :: al) (al' := al) (bl := bl) (alh := alh) (alt := alt); auto. subst. rewrite split_true_l_rev. auto.
     SCase "al = false :: al".
       destruct bl. 
       SSCase "bl = nil".
@@ -471,8 +576,8 @@ Lemma keep_cm_is_necessary_and_sufficient: forall (bl al' bl' al alh alt blh blt
   cm2 = mkcm cm2l cm2r ->
   cm3 = mkcm (move_pol_right_l n al bl) (move_pol_right_r n al bl) ->
   cm4 = mkcm (move_pol_left_l n al bl) (move_pol_left_r n al bl) ->
-  blh = split_false_l bl -> blt = split_false_r bl -> cm1l = blh ++ al -> cm1r = blt ->
-  alh = split_true_l al -> alt = split_true_r al -> cm2l = alt -> cm2r = alh ++ bl ->
+  blh = split_false_l bl -> blt = split_false_r bl -> cm1l = (rev blh) ++ al -> cm1r = blt ->
+  alh = split_true_l al -> alt = split_true_r al -> cm2l = alt -> cm2r = (rev alh) ++ bl ->
   (keep_cm al bl /\ (~ cmlt cm0 cm3) /\ (~ cmlt cm0 cm4)) \/
   (~ keep_cm al bl /\ ((keep_cm cm1l cm1r /\ cmlt cm0 cm1) \/ (keep_cm cm2l cm2r /\ cmlt cm0 cm2))).
   intros. destruct al.
@@ -485,7 +590,7 @@ Lemma keep_cm_is_necessary_and_sufficient: forall (bl al' bl' al alh alt blh blt
       SSCase "bl = true :: bl".
         left. simpl. split. auto. apply keep_test_move_left_right with (n := n) (al := nil) (bl := true :: bl); simpl; auto.
       SSCase "bl = false :: bl".
-        right. simpl. split. auto. apply something_is_kept_and_better with (bl := false :: bl) (al := nil) (alh := nil) (alt := nil) (blh := blh) (blt := blt); subst; simpl; auto.
+        right. simpl. split. auto. apply something_is_kept_and_better with (bl := false :: bl) (al := nil) (alh := nil) (alt := nil) (blh := blh) (blt := blt); subst; simpl; auto. simpl.
  Case "al = b :: al".
    destruct b.
    SCase "al = true :: al".
@@ -501,3 +606,5 @@ Lemma keep_cm_is_necessary_and_sufficient: forall (bl al' bl' al alh alt blh blt
        SSSCase "bl = false :: bl".
          right. simpl. split. auto. apply something_is_kept_and_better with (bl := false :: bl) (al := false :: al) (alh := alh) (alt := alt) (blh := blh) (blt := blt); subst; simpl; auto.
   Qed.
+
+Print plus_comm.
