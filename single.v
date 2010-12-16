@@ -625,12 +625,4 @@ a = move_pol_right_l 1 nil x ->
 b = move_pol_right_r 1 nil x ->
 cmlt (mkcm nil x) (mkcm a b).
 intros. subst.  unfold cmlt. split. auto with arith. unfold not. intros. inversion H. Qed.
-
-
-Definition move_pol_right_l (n:nat) (a b: list bool): list bool :=
-  (rev (firstn n b)) ++  a.
-
-Hint Unfold move_pol_right_l.
-
-Definition move_pol_right_r (n:nat) (a b: list bool): list bool  :=
-  skipn n b.
+Recursive Extraction numtrue numfalse split_true_l split_true_r split_false_l split_false_r move_pol_left_l move_pol_left_r move_pol_right_l move_pol_right_r mkcm gettp getfp gettn getfn cmle cmlt keep_cm.
