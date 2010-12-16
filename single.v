@@ -227,6 +227,7 @@ Definition getfn (a:confmat) : nat :=
   match a with
     [a0, a1, a2, a3] => a3
   end.
+Hint Unfold gettp getfp gettn getfn.
 
 (* We now define a partial ordering on confusion matrices.  A confusion matrix is less than or equal to another is it has less than or equal TP and TN and greater than or equal FP and FN. *)
 Definition cmle (a b: confmat) : Prop :=
@@ -607,4 +608,29 @@ Lemma keep_cm_is_necessary_and_sufficient: forall (bl al' bl' al alh alt blh blt
          right. simpl. split. auto. apply something_is_kept_and_better with (bl := false :: bl) (al := false :: al) (alh := alh) (alt := alt) (blh := blh) (blt := blt); subst; simpl; auto.
   Qed.
 
-Print plus_comm.
+
+Hint Resolve split.
+Hint Unfold not.
+Example test_cmlt0: cmlt [0, 2, 0, 0] [2, 0, 0, 0].
+unfold cmlt. split. auto with arith. unfold not. intros. inversion H. Qed.
+
+Example test_cmlt1: cmlt [0, 0, 0, 2] [2, 0, 0, 0].
+unfold cmlt. split. auto with arith. unfold not. intros. inversion H. Qed.
+
+
+(* |-++ < -|++ *)
+Example test_mvpol_right0:
+forall x a b, x = false :: true :: true :: nil ->
+a = move_pol_right_l 1 nil x ->
+b = move_pol_right_r 1 nil x ->
+cmlt (mkcm nil x) (mkcm a b).
+intros. subst.  unfold cmlt. split. auto with arith. unfold not. intros. inversion H. Qed.
+
+
+Definition move_pol_right_l (n:nat) (a b: list bool): list bool :=
+  (rev (firstn n b)) ++  a.
+
+Hint Unfold move_pol_right_l.
+
+Definition move_pol_right_r (n:nat) (a b: list bool): list bool  :=
+  skipn n b.
